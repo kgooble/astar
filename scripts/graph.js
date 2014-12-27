@@ -17,31 +17,6 @@ define(['priorityqueue'], function (priorityqueue) {
 		return "(" + this.x + ", " + this.y + ")";
 	};
 
-	var MyMap = function () {
-		this.props = {};
-		this.length = 0;
-	};
-
-	MyMap.prototype.get = function (key) {
-		return this.props[key];
-	};
-
-	MyMap.prototype.put = function (key, val) {
-		this.props[key] = val;
-		this.length++;
-	};
-
-	MyMap.prototype.contains = function (key) {
-		return this.props[key] !== undefined;
-	};
-
-	MyMap.prototype.delete = function (key) {
-		if (this.contains(key)) {
-			delete this.props[key];
-			this.length--;
-		}
-	};
-
 	var PixelGraph = function (width, height) {
 		this.width = width;
 		this.height = height;
@@ -60,7 +35,6 @@ define(['priorityqueue'], function (priorityqueue) {
 	};
 
 	PixelGraph.prototype.draw = function (ctx) {
-
 		for (var n in this.nodes) {
 			var node = this.nodes[n];
 	        if (node.marked) {
@@ -86,7 +60,6 @@ define(['priorityqueue'], function (priorityqueue) {
 				ctx.stroke();
 	    	}
 		}
-
 	};
 
 	PixelGraph.prototype.findNearestNode = function (x, y) {
@@ -186,7 +159,7 @@ define(['priorityqueue'], function (priorityqueue) {
 
 	PixelGraph.prototype.reconstructPath = function (cameFrom, current) {
 		var path = [current];
-		while (cameFrom.contains(current)) {
+		while (cameFrom.has(current)) {
 			current = cameFrom.get(current);
 			path.push(current);
 		}
@@ -207,36 +180,36 @@ define(['priorityqueue'], function (priorityqueue) {
 
 		// Begin A* Search Algorithm
 		var openSet = new priorityqueue.PriorityQueue();
-		var closedSet = new MyMap();
-		var cameFrom = new MyMap();
+		var closedSet = new Map();
+		var cameFrom = new Map();
 
-		var gScores = new MyMap();
-		var fScores = new MyMap();
+		var gScores = new Map();
+		var fScores = new Map();
 
-		gScores.put(start, 0);
-		fScores.put(start, gScores.get(start) + this.heuristic(start, goal));
+		gScores.set(start, 0);
+		fScores.set(start, gScores.get(start) + this.heuristic(start, goal));
 		openSet.enqueue(start, fScores.get(start));
 
 		while (!openSet.isEmpty()) {
 			var current = openSet.dequeue();
 			if (current == goal) {
 				var path = this.reconstructPath(cameFrom, goal);
-				this.path = path;		    
+				this.path = path;
 				return null;
 			}
 
-			closedSet.put(current, true);
+			closedSet.set(current, true);
 			var neighbours = this.findNeighbours(current);
 			for (var i = 0; i < neighbours.length; i++) {
 				var neighbour = neighbours[i];
-				if (neighbour === undefined || closedSet.contains(neighbour)) {
+				if (neighbour === undefined || closedSet.has(neighbour)) {
 					continue;
 				}
 				var tentativeGScore = gScores.get(current) + this.distanceBetween(current, neighbour);
 				if (tentativeGScore < Number.POSITIVE_INFINITY && (!openSet.contains(neighbour) || tentativeGScore < gScores.get(neighbour))) {
-					cameFrom.put(neighbour, current);
-					gScores.put(neighbour, tentativeGScore);
-					fScores.put(neighbour, gScores.get(neighbour) + this.heuristic(neighbour, goal));
+					cameFrom.set(neighbour, current);
+					gScores.set(neighbour, tentativeGScore);
+					fScores.set(neighbour, gScores.get(neighbour) + this.heuristic(neighbour, goal));
 					if (!openSet.contains(neighbour)) {
 						openSet.enqueue(neighbour, fScores.get(neighbour));
 					}
