@@ -21,21 +21,36 @@ function ($, graph) {
 
     var g = new graph.Graph(CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    var shiftDown = false;
+
     $("#myCanvas").click(function (event){
-        g.markNearestNode(event.offsetX, event.offsetY);
+        if (shiftDown) {
+            g.markNearestNodeAsWall(event.offsetX, event.offsetY);
+        } else {
+            g.markNearestNode(event.offsetX, event.offsetY);
+        }
     });
     $(document).keyup(function (event) {
-        if (event.which == 13){
+        if (event.which === 13){
             var result = g.calculatePath();
             if (result) {
                 alert(result);
             }
+        } else if (event.which === 16) {
+            shiftDown = false;
+        }
+    });
+    $(document).keydown(function (event) {
+        if (event.which === 16) {
+            shiftDown = true;
         }
     });
     g.initialize();
-    g.draw(ctx);
-
     setInterval(function () {
+        // clear screen
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, ctx.width, ctx.height);
+
         g.draw(ctx);
     }, 1000/60);
 

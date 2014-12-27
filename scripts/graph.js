@@ -5,9 +5,13 @@ define(['priorityqueue'], function (priorityqueue) {
 		this.x = x;
 		this.y = y;
 		this.marked = false;
+		this.wall = false;
 	};
 	Node.prototype.toggleMarked = function () {
 		this.marked = !this.marked;
+	};
+	Node.prototype.toggleWall = function () {
+		this.wall = !this.wall;
 	};
 	Node.prototype.toString = function () {
 		return "(" + this.x + ", " + this.y + ")";
@@ -41,7 +45,9 @@ define(['priorityqueue'], function (priorityqueue) {
 	var PixelGraph = function (width, height) {
 		this.width = width;
 		this.height = height;
-		this.markedNodes = new MyMap();
+		this.firstMarkedNode = null;
+		this.secondMarkedNode = null;
+		this.markedFirstLast = false;
 	};
 
 	PixelGraph.prototype.initialize = function () {
@@ -54,9 +60,6 @@ define(['priorityqueue'], function (priorityqueue) {
 	};
 
 	PixelGraph.prototype.draw = function (ctx) {
-		// clear screen
-		ctx.fillStyle = "white";
-		ctx.fillRect(0, 0, ctx.width, ctx.height);
 
 		for (var n in this.nodes) {
 			var node = this.nodes[n];
@@ -65,6 +68,9 @@ define(['priorityqueue'], function (priorityqueue) {
 	        	ctx.fillRect(node.x - 2, node.y - 2, 6, 6);
 	        } else if (node.nextToMarked) {
 	        	ctx.fillStyle = "blue";
+	        	ctx.fillRect(node.x - 2, node.y - 2, 6, 6);
+	        } else if (node.wall) {
+	        	ctx.fillStyle = "gray";
 	        	ctx.fillRect(node.x - 2, node.y - 2, 6, 6);
 	        }
 	        ctx.fillStyle = "black";
@@ -147,11 +153,31 @@ define(['priorityqueue'], function (priorityqueue) {
 	PixelGraph.prototype.markNearestNode = function (x, y) {
 		var n = this.findNearestNode(x, y);
 		n.toggleMarked();
-		if (this.markedNodes.contains(n)) {
-			this.markedNodes.delete(n);
+		if (n.marked) {
+			if (!this.markedFirstLast || this.firstMarkedNode === null) {
+				if (this.firstMarkedNode !== null) {
+					this.firstMarkedNode.toggleMarked();
+				}
+				this.firstMarkedNode = n;
+				this.markedFirstLast = true;
+			} else {
+				if (this.secondMarkedNode !== null) {
+					this.secondMarkedNode.toggleMarked();
+				}
+				this.secondMarkedNode = n;
+				this.markedFirstLast = false;
+			}
 		} else {
-			this.markedNodes.put(n, n);
+			if (this.firstMarkedNode == n) {
+				this.firstMarkedNode = null;
+			} else if (this.secondMarkedNode == n) {
+				this.secondMarkedNode = null;
+			}
 		}
+	};
+	PixelGraph.prototype.markNearestNodeAsWall = function (x, y) {
+		var n = this.findNearestNode(x, y);
+		n.toggleWall();
 	};
 
 	PixelGraph.prototype.heuristic = function (start, goal) {
@@ -167,21 +193,16 @@ define(['priorityqueue'], function (priorityqueue) {
 		return path;
 	};
 	PixelGraph.prototype.distanceBetween = function (start, end) {
+		if (end.wall) {
+			return Number.POSITIVE_INFINITY;
+		}
 		return this.heuristic(start, end);
 	};
 
 	PixelGraph.prototype.calculatePath = function (start, goal) {
 		if (start === undefined || goal === undefined) {
-			if (this.markedNodes.length != 2) {
-				return "ERROR! Require two marked nodes; had " + this.markedNodes.length;
-			}
-			for (var key in this.markedNodes.props) {
-				if (start) {
-					goal = this.markedNodes.get(key);
-				} else {
-					start = this.markedNodes.get(key);
-				}
-			}
+			start = this.firstMarkedNode;
+			goal = this.secondMarkedNode;
 		}
 
 		// Begin A* Search Algorithm
@@ -208,11 +229,11 @@ define(['priorityqueue'], function (priorityqueue) {
 			var neighbours = this.findNeighbours(current);
 			for (var i = 0; i < neighbours.length; i++) {
 				var neighbour = neighbours[i];
-				if (closedSet.contains(neighbour)) {
+				if (neighbour === undefined || closedSet.contains(neighbour)) {
 					continue;
 				}
 				var tentativeGScore = gScores.get(current) + this.distanceBetween(current, neighbour);
-				if (!openSet.contains(neighbour) || tentativeGScore < gScores.get(neighbour)) {
+				if (tentativeGScore < Number.POSITIVE_INFINITY && (!openSet.contains(neighbour) || tentativeGScore < gScores.get(neighbour))) {
 					cameFrom.put(neighbour, current);
 					gScores.put(neighbour, tentativeGScore);
 					fScores.put(neighbour, gScores.get(neighbour) + this.heuristic(neighbour, goal));
