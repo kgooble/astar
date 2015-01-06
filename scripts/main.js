@@ -45,7 +45,6 @@ function ($, graph) {
             shiftDown = true;
         }
     });
-    g.initialize();
     setInterval(function () {
         // clear screen
         ctx.fillStyle = "white";

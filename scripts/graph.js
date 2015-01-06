@@ -1,5 +1,5 @@
 define(['priorityqueue'], function (priorityqueue) {
-	var NODE_PIXEL_DISTANCE = 10;
+	var DEFAULT_NODE_PIXEL_DISTANCE = 10;
 
 	var Node = function (x, y) {
 		this.x = x;
@@ -17,18 +17,32 @@ define(['priorityqueue'], function (priorityqueue) {
 		return "(" + this.x + ", " + this.y + ")";
 	};
 
-	var PixelGraph = function (width, height) {
+	var Path = function (nodeList) {
+		this.nodeList = nodeList;
+		this.length = nodeList.length;
+	};
+
+	Path.prototype.getDirection = function () {
+		if (this.nodeList.length < 2) {
+			return {x:0, y:0};
+		}
+		return {x: (this.nodeList[this.length-2].x - this.nodeList[this.length-1].x), 
+				y: (this.nodeList[this.length-2].y - this.nodeList[this.length-1].y)};
+	};
+
+	var PixelGraph = function (width, height, pixelDistance) {
 		this.width = width;
 		this.height = height;
+		if (pixelDistance === undefined) {
+			pixelDistance = DEFAULT_NODE_PIXEL_DISTANCE;
+		}
+		this.pixelDistance = pixelDistance;
 		this.firstMarkedNode = null;
 		this.secondMarkedNode = null;
 		this.markedFirstLast = false;
-	};
-
-	PixelGraph.prototype.initialize = function () {
 		this.nodes = {};
-	    for (var x = 0; x < this.width; x += NODE_PIXEL_DISTANCE) {
-	        for (var y = 0; y < this.height; y += NODE_PIXEL_DISTANCE) {
+	    for (var x = 0; x < this.width; x += this.pixelDistance) {
+	        for (var y = 0; y < this.height; y += this.pixelDistance) {
 	        	this.nodes[[x, y]] = new Node(x, y);
 	        }
 	    }
@@ -63,13 +77,30 @@ define(['priorityqueue'], function (priorityqueue) {
 	};
 
 	PixelGraph.prototype.findNearestNode = function (x, y) {
-		var nearestTenX = Math.floor(x / NODE_PIXEL_DISTANCE) * NODE_PIXEL_DISTANCE;
-		var nearestTenY = Math.floor(y / NODE_PIXEL_DISTANCE) * NODE_PIXEL_DISTANCE;
-		if (x % NODE_PIXEL_DISTANCE > (NODE_PIXEL_DISTANCE / 2) && x < this.width) {
-			nearestTenX += NODE_PIXEL_DISTANCE;
+        if (y === undefined) {
+            y = x.y;
+            x = x.x;
+        }
+		var nearestTenX = Math.floor(x / this.pixelDistance) * this.pixelDistance;
+		var nearestTenY = Math.floor(y / this.pixelDistance) * this.pixelDistance;
+		if (x % this.pixelDistance > (this.pixelDistance / 2) && x < this.width) {
+			nearestTenX += this.pixelDistance;
 		}
-		if (y % NODE_PIXEL_DISTANCE > (NODE_PIXEL_DISTANCE / 2) && y < this.height) {
-			nearestTenY += NODE_PIXEL_DISTANCE;
+		if (y % this.pixelDistance > (this.pixelDistance / 2) && y < this.height) {
+			nearestTenY += this.pixelDistance;
+		}
+
+		if (nearestTenX < 0) {
+			nearestTenX = 0;
+		}
+		if (nearestTenX >= this.width){
+			nearestTenX = this.width - this.pixelDistance;
+		}
+		if (nearestTenY < 0) {
+			nearestTenY = 0;
+		}
+		if (nearestTenY >= this.height){
+			nearestTenY = this.height - this.pixelDistance;
 		}
 
 		return this.nodes[[nearestTenX, nearestTenY]];
@@ -77,46 +108,48 @@ define(['priorityqueue'], function (priorityqueue) {
 
 	PixelGraph.prototype.findNeighbours = function (node) {
 		var neighbours = [];
-		if (node.y - NODE_PIXEL_DISTANCE > 0) {
-			var y = node.y - NODE_PIXEL_DISTANCE;
-			if (node.x - NODE_PIXEL_DISTANCE > 0) {
+		var maxHeight = this.height - this.pixelDistance;
+		var maxWidth = this.width - this.pixelDistance;
+		if (node.y - this.pixelDistance >= 0) {
+			var y = node.y - this.pixelDistance;
+			if (node.x - this.pixelDistance >= 0) {
 				neighbours.push(this.nodes[
-					[node.x - NODE_PIXEL_DISTANCE, y]
+					[node.x - this.pixelDistance, y]
 				]);
 			}
 			neighbours.push(this.nodes[
 				[node.x, y]
 			]);
-			if (node.x + NODE_PIXEL_DISTANCE > 0) {
+			if (node.x + this.pixelDistance <= maxWidth) {
 				neighbours.push(this.nodes[
-					[node.x + NODE_PIXEL_DISTANCE, y]
+					[node.x + this.pixelDistance, y]
 				]);
 			}
 		}
 		var y = node.y;
-		if (node.x - NODE_PIXEL_DISTANCE > 0) {
+		if (node.x - this.pixelDistance >= 0) {
 			neighbours.push(this.nodes[
-				[node.x - NODE_PIXEL_DISTANCE, y]
+				[node.x - this.pixelDistance, y]
 			]);
 		}
-		if (node.x + NODE_PIXEL_DISTANCE > 0) {
+		if (node.x + this.pixelDistance <= maxWidth) {
 			neighbours.push(this.nodes[
-				[node.x + NODE_PIXEL_DISTANCE, y]
+				[node.x + this.pixelDistance, y]
 			]);
 		}
-		if (node.y + NODE_PIXEL_DISTANCE < this.height) {
-			var y = node.y + NODE_PIXEL_DISTANCE;
-			if (node.x - NODE_PIXEL_DISTANCE > 0) {
+		if (node.y + this.pixelDistance <= maxHeight) {
+			var y = node.y + this.pixelDistance;
+			if (node.x - this.pixelDistance >= 0) {
 				neighbours.push(this.nodes[
-					[node.x - NODE_PIXEL_DISTANCE, y]
+					[node.x - this.pixelDistance, y]
 				]);
 			}
 			neighbours.push(this.nodes[
 				[node.x, y]
 			]);
-			if (node.x + NODE_PIXEL_DISTANCE > 0) {
+			if (node.x + this.pixelDistance <= maxWidth) {
 				neighbours.push(this.nodes[
-					[node.x + NODE_PIXEL_DISTANCE, y]
+					[node.x + this.pixelDistance, y]
 				]);
 			}
 		}
